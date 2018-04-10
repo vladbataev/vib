@@ -40,7 +40,8 @@ def main():
             
     for setting in settings:
         logger = Logger("multi_zetas" + str(setting), fmt=fmt)
-        
+        model_base_dir = os.path.join("./", str(setting))
+
         def make_experiment(num_epochs=200, stoch_z_dims=[512, 256, 128],
                             use_stoch=[True, True, True], betas=None, betas_equal=True):
             tf.reset_default_graph()
@@ -142,6 +143,16 @@ def main():
             avg_accuracy = tf.reduce_mean(tf.cast(tf.equal(
                 tf.argmax(tf.reduce_mean(tf.nn.softmax(many_logits), 0), 1), labels), tf.float32))
 
+            summary_path = os.path.join(model_base_dir, "./summaries")
+            train_writer = tf.summary.FileWriter(os.path.join(summary_path, './train'), flush_secs=60)
+            test_writer = tf.summary.FileWriter(os.path.join(summary_path, './test'), flush_secs=60)
+
+            tf.summary.scalar("IZX", IZX_bounds[0])
+            tf.summary.scalar("IZY", IZY_bound)
+            tf.summary.scalar("accuracy", accuracy)
+            tf.summary.scalar("average_accuracy", avg_accuracy)
+            merged = tf.summary.merge_all()
+
             batch_size = 100
             steps_per_batch = int(mnist_data.train.num_examples / batch_size)
 
@@ -180,7 +191,9 @@ def main():
                 for epoch in range(1, num_epochs + 1):
                     for step in range(steps_per_batch):
                         im, ls = mnist_data.train.next_batch(batch_size)
-                        sess.run([train_tensor], feed_dict={images: im, labels: ls})
+                        summary, _ = sess.run([merged, train_tensor], feed_dict={images: im, labels: ls})
+                        if step == steps_per_batch - 1:
+                            train_writer.add_summary(summary, epoch)
 
                     metrics = evaluate()
                     logger.add_scalar(epoch, 'IZY', metrics[0])
@@ -199,7 +212,7 @@ def main():
                     logger.add_scalar(epoch, "avg_adv_acc", avg_adv_acc)
                     logger.iter_info()
 
-                ckpts_path = os.path.join("./ckpts/", "_".join(map(str, betas))) + "/"
+                ckpts_path = os.path.join(model_base_dir, "./ckpts/")
                 savepth = saver.save(sess, ckpts_path, global_step)        
                 saver_polyak.restore(sess, savepth)
                 logger.save()
