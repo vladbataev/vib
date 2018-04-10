@@ -39,7 +39,7 @@ def main():
             settings.append(setting)
             
     for setting in settings:
-        str_setting = "_".join(map(str, setting["use_stoch"] + setting["betas"]))
+        str_setting = "_".join(map(str, [setting["num_epochs"]] + setting["use_stoch"] + setting["betas"]))
         logger = Logger("multi_zetas" + str(str_setting), fmt=fmt)
         model_base_dir = os.path.join("./models", str_setting)
 
@@ -217,6 +217,16 @@ def main():
                     logger.add_scalar(epoch, "adv_acc", adv_acc)
                     logger.add_scalar(epoch, "avg_adv_acc", avg_adv_acc)
                     logger.iter_info()
+
+                    if args.early_stopping:
+                        if epoch > 5:
+                            first, second = False, False
+                            if logger.scalar_metrics["adv_acc"] < max(logger.scalar_metrics["adv_acc"][-5:]):
+                                first = True
+                            if logger.scalar_metrics["abg_adv_acc"] < max(logger.scalar_metrics["avg_adv_acc"][-5:]):
+                                second = True
+                            if first and second:
+                                break
 
                 ckpts_path = os.path.join(model_base_dir, "ckpts")
                 savepth = saver.save(sess, ckpts_path, global_step)        
