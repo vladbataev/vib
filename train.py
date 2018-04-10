@@ -39,10 +39,6 @@ def main():
             settings.append(setting)
             
     for setting in settings:
-        str_setting = "_".join(map(str, [setting["num_epochs"]] + setting["use_stoch"] + setting["betas"]))
-        logger = Logger("multi_zetas" + str(str_setting), fmt=fmt)
-        model_base_dir = os.path.join("./models", str_setting)
-
         def make_experiment(num_epochs=200, stoch_z_dims=[512, 256, 128],
                             use_stoch=[True, True, True], betas=None, betas_equal=True):
             tf.reset_default_graph()
@@ -54,6 +50,10 @@ def main():
 
             if not betas:
                 betas = default_betas
+
+            str_setting = "_".join(map(str, [setting["num_epochs"]] + setting["use_stoch"] + betas))
+            logger = Logger("multi_zetas" + str(str_setting), fmt=fmt)
+            model_base_dir = os.path.join("./models", str_setting)
 
             num_stoch_z = len(stoch_z_dims)
             images = tf.placeholder(tf.float32, [None, 784], 'images')
