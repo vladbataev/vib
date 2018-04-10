@@ -39,8 +39,9 @@ def main():
             settings.append(setting)
             
     for setting in settings:
-        logger = Logger("multi_zetas" + str(setting), fmt=fmt)
-        model_base_dir = os.path.join("./", str(setting))
+        str_setting = "_".join(map(str, setting["use_stoch"] + setting["betas"]))
+        logger = Logger("multi_zetas" + str(str_setting), fmt=fmt)
+        model_base_dir = os.path.join("./", str_setting)
 
         def make_experiment(num_epochs=200, stoch_z_dims=[512, 256, 128],
                             use_stoch=[True, True, True], betas=None, betas_equal=True):
@@ -174,7 +175,7 @@ def main():
             with tf.Session() as sess:
                 tf.global_variables_initializer().run()
 
-                def evaluate(flag="test"):
+                def evaluate(num_epoch, flag="test"):
                     feed_dict = {images: mnist_data.test.images, labels: mnist_data.test.labels}
                     if flag == "train":
                         feed_dict = {images: mnist_data.train.images, labels: mnist_data.train.labels}
@@ -184,8 +185,11 @@ def main():
                         fgm_examples = sess.run(adv_examples, feed_dict=feed_dict)
                         adv_acc, avg_adv_acc = sess.run([accuracy, avg_metric], feed_dict={images: fgm_examples, 
                                                                                 labels: mnist_data.test.labels})
-                    IZY, IZX_s, acc, avg_acc = sess.run([IZY_bound, IZX_bounds, accuracy, avg_metric],
+                    summary, IZY, IZX_s, acc, avg_acc = sess.run([merged, IZY_bound, IZX_bounds, accuracy, avg_metric],
                                              feed_dict=feed_dict)
+                    if flag == "test":
+                        test_writer.add_summary(summary, num_epoch)
+
                     return IZY, IZX_s, acc, avg_acc, 1 - acc, 1 - avg_acc, adv_acc, avg_adv_acc
 
                 for epoch in range(1, num_epochs + 1):
@@ -195,7 +199,7 @@ def main():
                         if step == steps_per_batch - 1:
                             train_writer.add_summary(summary, epoch)
 
-                    metrics = evaluate()
+                    metrics = evaluate(epoch)
                     logger.add_scalar(epoch, 'IZY', metrics[0])
                     for i in range(len(metrics[1])):
                         if i == 0:
@@ -212,7 +216,7 @@ def main():
                     logger.add_scalar(epoch, "avg_adv_acc", avg_adv_acc)
                     logger.iter_info()
 
-                ckpts_path = os.path.join(model_base_dir, "./ckpts/")
+                ckpts_path = os.path.join(model_base_dir, "ckpts")
                 savepth = saver.save(sess, ckpts_path, global_step)        
                 saver_polyak.restore(sess, savepth)
                 logger.save()
