@@ -222,13 +222,11 @@ def main():
                         first, second = False, False
                         best_adv_acc = max(logger.scalar_metrics["adv_acc"], key=lambda x: x[1])
                         best_avg_adv_acc = max(logger.scalar_metrics["avg_adv_acc"], key=lambda x: x[1])
-                        delta = 0.5
+                        delta = 0.01
                         delta_1 = best_adv_acc[1] - logger.scalar_metrics["adv_acc"][-1][1]
-                        print("Delta 1: {}, epoch: {}".format(delta_1, epoch))
                         if delta_1 > delta and best_adv_acc[0] - epoch > 10:
                             first = True
                         delta_2 = best_avg_adv_acc[1] - logger.scalar_metrics["avg_adv_acc"][-1][1]
-                        print("Delta 2: {}, epoch: {}".format(delta_2, epoch))
                         if delta_2 > delta and best_avg_adv_acc[0] - epoch > 10:
                             second = True
                         if first and second:
