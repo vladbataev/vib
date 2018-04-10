@@ -13,6 +13,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--betas_equal",  action="store_true")
     parser.add_argument("--early_stopping", action="store_true")
+    parser.add_argument("--num_epochs", type=int, default=200)    
+    parser.add_argument("--debug", action="store_true")
 
     args = parser.parse_args()
 
@@ -20,12 +22,17 @@ def main():
     fmt = {"IZY": '.2f', "IXZ_1": '.2f', "IZ_1Z_2": '.2f', "IZ_2Z_3": '.2f', 
            "acc": '.4f', "avg_acc": '.4f', "err": '.4f', "avg_err": '.4f', "adv_acc": '.4f', "avg_adv_acc": '.4f'}
     
-    betas = np.logspace(-9, 0, 10)
+    if args.debug:
+        betas = [1e-2]
+        num_epochs = 1
+    else:
+        betas = np.logspace(-9, 0, 10)
+        num_epochs = args.num_epochs
     settings = []
     for beta in betas:
         for use_stoch in [[True, True, True], [False, False, True], [False, True, True]]:
             setting = {
-                "num_epochs": 200,
+                "num_epochs": num_epochs,
                 "use_stoch": use_stoch,
                 "betas": [beta] * 3,
             }
