@@ -1,16 +1,21 @@
 import numpy as np
-#import matplotlib.pyplot as plt
 import os
 import tensorflow as tf
-#import seaborn as sns
+import argparse
+import math
 
-from sklearn.utils import shuffle
+from tensorflow.examples.tutorials.mnist import input_data
 from logger import Logger
 from fast_gradient import fgm
 
 
 def main():
-    from tensorflow.examples.tutorials.mnist import input_data
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--betas_equal",  action="store_true")
+    parser.add_argument("--early_stopping", action="store_true")
+
+    args = parser.parse_args()
+
     mnist_data = input_data.read_data_sets('/tmp/mnistdata', validation_size=0)
     fmt = {"IZY": '.2f', "IXZ_1": '.2f', "IZ_1Z_2": '.2f', "IZ_2Z_3": '.2f', 
            "acc": '.4f', "avg_acc": '.4f', "err": '.4f', "avg_err": '.4f', "adv_acc": '.4f', "avg_adv_acc": '.4f'}
@@ -29,10 +34,15 @@ def main():
     for setting in settings:
         logger = Logger("multi_zetas" + str(setting), fmt=fmt)
         
-        def make_experiment(num_epochs=200, stoch_z_dims=[512, 256, 128], use_stoch=[True, True, True], betas=None):
+        def make_experiment(num_epochs=200, stoch_z_dims=[512, 256, 128],
+                            use_stoch=[True, True, True], betas=None, betas_equal=True):
             tf.reset_default_graph()
             assert(len(stoch_z_dims) == len(use_stoch))
             default_betas = np.array([1. / x for x in stoch_z_dims])
+
+            if not betas_equal:
+                betas *= default_betas
+
             if not betas:
                 betas = default_betas
 
@@ -61,9 +71,6 @@ def main():
                 return net
 
             prior = ds.Normal(0.0, 1.0)
-
-            import math
-
             x = images
             encoding = None
             info_losses = []
@@ -112,7 +119,6 @@ def main():
             class_loss = tf.losses.softmax_cross_entropy(
                 logits=logits, onehot_labels=one_hot_labels) / math.log(2)
 
-
             IZY_bound = math.log(10, 2) - class_loss
             IZX_bounds = []
 
@@ -129,11 +135,6 @@ def main():
             avg_accuracy = tf.reduce_mean(tf.cast(tf.equal(
                 tf.argmax(tf.reduce_mean(tf.nn.softmax(many_logits), 0), 1), labels), tf.float32))
 
-            summary_path = "./summaries/"
-            train_writer = tf.summary.FileWriter(os.path.join(summary_path, './train_' + "_".join(map(str, betas))), 
-                                                 flush_secs=60)
-            test_writer = tf.summary.FileWriter(os.path.join(summary_path, './test_' + "_".join(map(str, betas))), 
-                                                 flush_secs=60)
             batch_size = 100
             steps_per_batch = int(mnist_data.train.num_examples / batch_size)
 
@@ -152,8 +153,6 @@ def main():
             train_tensor = tf.contrib.training.create_train_op(total_loss, opt,
                                                                global_step,
                                                                update_ops=[ma_update])
-            test_metrics_samples = [] 
-            train_metrics_samples = []
             with tf.Session() as sess:
                 tf.global_variables_initializer().run()
 
@@ -169,17 +168,12 @@ def main():
                                                                                 labels: mnist_data.test.labels})
                     IZY, IZX_s, acc, avg_acc = sess.run([IZY_bound, IZX_bounds, accuracy, avg_metric],
                                              feed_dict=feed_dict)
-                    return IZY, IZX_s, acc, avg_acc, 1 -acc, 1- avg_acc, adv_acc, avg_adv_acc
-
-                import sys
+                    return IZY, IZX_s, acc, avg_acc, 1 - acc, 1 - avg_acc, adv_acc, avg_adv_acc
 
                 for epoch in range(1, num_epochs + 1):
                     for step in range(steps_per_batch):
                         im, ls = mnist_data.train.next_batch(batch_size)
                         sess.run([train_tensor], feed_dict={images: im, labels: ls})
-
-
-                    fgm(model, im)    
 
                     metrics = evaluate()
                     logger.add_scalar(epoch, 'IZY', metrics[0])
@@ -196,15 +190,15 @@ def main():
                     logger.add_scalar(epoch, "avg_err", avg_err)
                     logger.add_scalar(epoch, "adv_acc", adv_acc)
                     logger.add_scalar(epoch, "avg_adv_acc", avg_adv_acc)
-
                     logger.iter_info()
 
                 ckpts_path = os.path.join("./ckpts/", "_".join(map(str, betas))) + "/"
                 savepth = saver.save(sess, ckpts_path, global_step)        
-                #saver_polyak.restore(sess, savepth)
-
+                saver_polyak.restore(sess, savepth)
                 logger.save()
+
         make_experiment(setting["num_epochs"], use_stoch=setting["use_stoch"], betas=setting["betas"])     
-    
+
+
 if __name__ == "__main__":
     main()
