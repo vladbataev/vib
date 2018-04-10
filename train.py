@@ -41,7 +41,7 @@ def main():
     for setting in settings:
         str_setting = "_".join(map(str, setting["use_stoch"] + setting["betas"]))
         logger = Logger("multi_zetas" + str(str_setting), fmt=fmt)
-        model_base_dir = os.path.join("./", str_setting)
+        model_base_dir = os.path.join("./models", str_setting)
 
         def make_experiment(num_epochs=200, stoch_z_dims=[512, 256, 128],
                             use_stoch=[True, True, True], betas=None, betas_equal=True):
@@ -145,8 +145,10 @@ def main():
                 tf.argmax(tf.reduce_mean(tf.nn.softmax(many_logits), 0), 1), labels), tf.float32))
 
             summary_path = os.path.join(model_base_dir, "./summaries")
-            train_writer = tf.summary.FileWriter(os.path.join(summary_path, './train'), flush_secs=60)
-            test_writer = tf.summary.FileWriter(os.path.join(summary_path, './test'), flush_secs=60)
+            train_writer = tf.summary.FileWriter(os.path.join(summary_path, './train'), flush_secs=60,
+                                                 graph=tf.get_default_graph())
+            test_writer = tf.summary.FileWriter(os.path.join(summary_path, './test'), flush_secs=60,
+                                                 graph=tf.get_default_graph())
 
             tf.summary.scalar("IZX", IZX_bounds[0])
             tf.summary.scalar("IZY", IZY_bound)
