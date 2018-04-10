@@ -219,14 +219,20 @@ def main():
                     logger.iter_info()
 
                     if args.early_stopping:
-                        if epoch > 5:
-                            first, second = False, False
-                            if logger.scalar_metrics["adv_acc"] < max(logger.scalar_metrics["adv_acc"][-5:]):
-                                first = True
-                            if logger.scalar_metrics["abg_adv_acc"] < max(logger.scalar_metrics["avg_adv_acc"][-5:]):
-                                second = True
-                            if first and second:
-                                break
+                        first, second = False, False
+                        best_adv_acc = max(logger.scalar_metrics["adv_acc"], key=lambda x: x[1])
+                        best_avg_adv_acc = max(logger.scalar_metrics["avg_adv_acc"], key=lambda x: x[1])
+                        delta = 0.5
+                        delta_1 = best_adv_acc[1] - logger.scalar_metrics["adv_acc"][-1][1]
+                        print("Delta 1: {}, epoch: {}".format(delta_1, epoch))
+                        if delta_1 > delta and best_adv_acc[0] - epoch > 10:
+                            first = True
+                        delta_2 = best_avg_adv_acc[1] - logger.scalar_metrics["avg_adv_acc"][-1][1]
+                        print("Delta 2: {}, epoch: {}".format(delta_2, epoch))
+                        if delta_2 > delta and best_avg_adv_acc[0] - epoch > 10:
+                            second = True
+                        if first and second:
+                            break
 
                 ckpts_path = os.path.join(model_base_dir, "ckpts")
                 savepth = saver.save(sess, ckpts_path, global_step)        
