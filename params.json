@@ -1,0 +1,8 @@
+{
+  "stoch_z_dims": [512, 256, 128],
+  "use_stoch": [true, true, true],
+  "num_epochs": 300,
+  "betas": null,
+  "betas_equal": true,
+  "num_dense_layes": 3
+}
