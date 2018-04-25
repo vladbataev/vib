@@ -27,8 +27,8 @@ def run_experiment(params):
     else:
         if not params["betas_equal"]:
             betas *= default_betas
-
-    str_setting = "_".join(map(str, [num_epochs] + use_stoch + betas))
+    print(betas)
+    str_setting = "_".join(map(str, [num_epochs] + use_stoch + list(betas)))
     fmt = {"IZY": '.2f', "IXZ_1": '.2f', "IZ_1Z_2": '.2f', "IZ_2Z_3": '.2f',
            "acc": '.4f', "avg_acc": '.4f', "err": '.4f', "avg_err": '.4f', "adv_acc": '.4f', "avg_adv_acc": '.4f'}
 
@@ -45,7 +45,7 @@ def run_experiment(params):
         for _ in range(params["num_dense_layers"] - 1):
             x = layers.Dense(2 * stoch_dim, activation=tf.nn.relu)(x)
 
-        x = layers.Dense(2 * stoch_dim)
+        x = layers.Dense(2 * stoch_dim)(x)
         if use_stoch:
             mu, rho = x[:, :stoch_dim], x[:, stoch_dim:]
             encoding = ds.NormalWithSoftplusScale(mu, rho - 5.0)
@@ -54,7 +54,7 @@ def run_experiment(params):
             return tf.nn.relu(x)
 
     def decoder(encoding_sample):
-        net = layers.Dense(encoding_sample, 10)
+        net = layers.Dense(10)(encoding_sample)
         return net
 
     prior = ds.Normal(0.0, 1.0)
@@ -78,7 +78,7 @@ def run_experiment(params):
         logits = decoder(last_z)
 
     with tf.variable_scope('decoder', reuse=True):
-        last_z = encoding.sample(12) if use_stoch[-1] else encoding
+        last_z = encoding.sample(12) if use_stoch[-1] else encoding[:, None, ...]
         many_logits = decoder(last_z)
 
     def model(x, num_examples=1, logits=False):
@@ -113,6 +113,7 @@ def run_experiment(params):
     for i, info_loss in enumerate(info_losses):
         cur_bound = tf.reduce_sum(tf.reduce_mean(info_loss, 0))
         IZX_bounds.append(cur_bound)
+        print(betas[i])
         cum_info_loss += cur_bound * betas[i]
 
     total_loss = class_loss + cum_info_loss
@@ -127,8 +128,8 @@ def run_experiment(params):
                                          graph=tf.get_default_graph())
     test_writer = tf.summary.FileWriter(os.path.join(summary_path, './test'), flush_secs=60,
                                         graph=tf.get_default_graph())
-
-    tf.summary.scalar("IZX", IZX_bounds[0])
+    if len(IZX_bounds) > 0:
+        tf.summary.scalar("IZX", IZX_bounds[0])
     tf.summary.scalar("IZY", IZY_bound)
     tf.summary.scalar("accuracy", accuracy)
     tf.summary.scalar("average_accuracy", avg_accuracy)

@@ -9,7 +9,7 @@ def main():
 
     args = parser.parse_args()
     with open(args.config_path) as fin:
-        params = json.loads(fin)
+        params = json.load(fin)
 
     run_experiment(params)
 
