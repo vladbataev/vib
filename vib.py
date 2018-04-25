@@ -72,8 +72,6 @@ def run_experiment(params):
             encoding = encoder(x, stoch_z_dims[i], use_stoch[i], first)
             if use_stoch[i]:
                 info_losses.append(ds.kl_divergence(encoding, prior))
-            else:
-                info_losses.append(0)
 
     with tf.variable_scope('decoder'):
         last_z = encoding.sample() if use_stoch[-1] else encoding
@@ -115,7 +113,9 @@ def run_experiment(params):
     for i, info_loss in enumerate(info_losses):
         cur_bound = tf.reduce_sum(tf.reduce_mean(info_loss, 0))
         IZX_bounds.append(cur_bound)
-        cum_info_loss += cur_bound * betas[i]
+        cur_beta = betas[i + len(betas) - len(info_losses)]
+        print("IZX_{}, beta: {}".format(i, cur_beta))
+        cum_info_loss += cur_bound * cur_beta
 
     total_loss = class_loss + cum_info_loss
 
